@@ -25,7 +25,7 @@ def extract_pdf_text(pdf_file):
 # ==========================
 def ask_grok(pdf_text, question):
     headers = {
-        "Authorization": f"Bearer {GROK_API_KEY}",
+        "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
     }
     data = {
