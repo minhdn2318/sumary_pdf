@@ -29,7 +29,7 @@ def ask_grok(pdf_text, question):
         "Content-Type": "application/json",
     }
     data = {
-        "model": "llama-3.1-8b-instant",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": "Bạn là trợ lý đọc hiểu PDF."},
             {"role": "user", "content": f"Tài liệu: {pdf_text}\n\nCâu hỏi: {question}"}
