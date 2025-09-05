@@ -5,7 +5,7 @@ import fitz  # PyMuPDF để đọc PDF
 # ==========================
 # Cấu hình API
 # ==========================
-GROK_API_URL = "https://api.grog.ai/v1/chat/completions"
+GROK_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 import os
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
