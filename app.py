@@ -92,7 +92,7 @@ def ask_groq(chunks, question):
         ]
     }
     try:
-        response = requests.post(GROQ_API_URL, headers=headers, json=data)
+        response = requests.post("{GROQ_API_URL}", headers=headers, json=data)
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
         else:
