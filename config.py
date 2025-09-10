@@ -13,6 +13,7 @@ GOOGLE_DRIVE_FOLDER_ID = "1qYLaWRbRnC0j4cRX9jzeJgKqmn185tNm"  # thay bằng fold
 
 # Embedding Model
 EMBEDDING_MODEL = "keepitreal/vietnamese-sbert"
+Model_AI = "llama-3.3-70b-versatile"
 
 # FAISS
 INDEX_PATH = "index/faiss.index"

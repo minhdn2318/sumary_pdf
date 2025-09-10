@@ -85,7 +85,7 @@ def ask_groq(chunks, question):
     context = "\n\n".join(chunks)
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     data = {
-        "model": "gpt-4o-mini",
+        "model": Model_AI,
         "messages": [
             {"role": "system", "content": "Bạn là trợ lý đọc hiểu tài liệu."},
             {"role": "user", "content": f"Ngữ cảnh: {context}\n\nCâu hỏi: {question}"}
