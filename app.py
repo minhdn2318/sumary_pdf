@@ -12,18 +12,30 @@ from config import *
 # Utils
 # =============================
 def extract_pdf_text(file_path):
+    """Đọc text từ PDF, nếu file scan sẽ trả về rỗng"""
     text = ""
-    doc = fitz.open(file_path)
-    for page in doc:
-        text += page.get_text("text") + "\n"
-    return text
+    try:
+        doc = fitz.open(file_path)
+        for page in doc:
+            text += page.get_text("text") + "\n"
+    except Exception as e:
+        st.error(f"Lỗi đọc PDF: {e}")
+    return text.strip()
 
 def extract_docx_text(file_path):
-    doc = docx.Document(file_path)
-    return "\n".join([p.text for p in doc.paragraphs])
+    """Đọc text từ DOCX"""
+    try:
+        doc = docx.Document(file_path)
+        return "\n".join([p.text for p in doc.paragraphs]).strip()
+    except Exception as e:
+        st.error(f"Lỗi đọc DOCX: {e}")
+        return ""
 
 def chunk_text(text, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
+    """Chia nhỏ text thành các chunk"""
     chunks = []
+    if not text.strip():
+        return chunks
     start = 0
     while start < len(text):
         end = min(start + chunk_size, len(text))
@@ -35,30 +47,40 @@ def chunk_text(text, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
 # FAISS Index
 # =============================
 def build_index(chunks, index_path=INDEX_PATH):
+    """Tạo FAISS index từ list chunks"""
+    if not chunks:
+        return None, None, []
     model = SentenceTransformer(EMBEDDING_MODEL)
     embeddings = model.encode(chunks, convert_to_numpy=True)
+    if embeddings.shape[0] == 0:
+        return None, None, []
     dim = embeddings.shape[1]
     index = faiss.IndexFlatL2(dim)
     index.add(embeddings)
+    os.makedirs(os.path.dirname(index_path), exist_ok=True)
     faiss.write_index(index, index_path)
     return index, embeddings, chunks
 
 def load_index(index_path=INDEX_PATH):
     if not os.path.exists(index_path):
-        return None, None
-    index = faiss.read_index(index_path)
-    return index
+        return None
+    return faiss.read_index(index_path)
 
 def search_chunks(query, chunks, index, top_k=TOP_K):
+    """Tìm top_k chunks liên quan nhất đến query"""
+    if index is None or not chunks:
+        return []
     model = SentenceTransformer(EMBEDDING_MODEL)
     q_emb = model.encode([query], convert_to_numpy=True)
     D, I = index.search(q_emb, top_k)
-    return [chunks[i] for i in I[0]]
+    return [chunks[i] for i in I[0] if i < len(chunks)]
 
 # =============================
 # Call Groq API
 # =============================
 def ask_groq(chunks, question):
+    if not chunks:
+        return "⚠️ Không có dữ liệu để hỏi đáp."
     context = "\n\n".join(chunks)
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     data = {
@@ -68,11 +90,14 @@ def ask_groq(chunks, question):
             {"role": "user", "content": f"Ngữ cảnh: {context}\n\nCâu hỏi: {question}"}
         ]
     }
-    response = requests.post(GROQ_API_URL, headers=headers, json=data)
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    else:
-        return f"❌ Lỗi API: {response.status_code} - {response.text}"
+    try:
+        response = requests.post(GROQ_API_URL, headers=headers, json=data)
+        if response.status_code == 200:
+            return response.json()["choices"][0]["message"]["content"]
+        else:
+            return f"❌ Lỗi API: {response.status_code} - {response.text}"
+    except Exception as e:
+        return f"❌ Lỗi kết nối API: {e}"
 
 # =============================
 # Streamlit UI
@@ -83,16 +108,14 @@ st.title("📚 Trợ lý Hỏi đáp Tài liệu (Grok API + FAISS)")
 mode = st.radio("Chọn nguồn dữ liệu:", ["Google Drive (mặc định)", "Upload thủ công"])
 
 if st.button("🔄 Đồng bộ lại OCR dữ liệu"):
-    st.info("Đang đồng bộ lại dữ liệu...")
+    st.info("⏳ Đang đồng bộ lại dữ liệu...")
 
     os.makedirs("data", exist_ok=True)
-
     all_text = ""
 
     if mode == "Google Drive (mặc định)":
-        # TODO: tải file từ Google Drive folder (cần API key / pydrive / gdown)
-        # Ví dụ: bạn implement gdown.download_folder(GOOGLE_DRIVE_FOLDER)
-        st.warning("🚧 Chưa implement lấy file từ Google Drive (cần API Google Drive hoặc gdown).")
+        # TODO: tải file từ Google Drive folder (cần API key / gdown)
+        st.warning("🚧 Chưa implement tải file từ Google Drive (sẽ thêm sau).")
     else:
         uploaded_files = st.file_uploader("Tải file PDF/DOCX", type=["pdf", "docx"], accept_multiple_files=True)
         if uploaded_files:
@@ -101,23 +124,32 @@ if st.button("🔄 Đồng bộ lại OCR dữ liệu"):
                 with open(file_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 if file_path.endswith(".pdf"):
-                    all_text += extract_pdf_text(file_path)
+                    all_text += extract_pdf_text(file_path) + "\n"
                 elif file_path.endswith(".docx"):
-                    all_text += extract_docx_text(file_path)
+                    all_text += extract_docx_text(file_path) + "\n"
 
     chunks = chunk_text(all_text)
-    index, embeddings, saved_chunks = build_index(chunks)
-    np.save("index/chunks.npy", saved_chunks)
-    st.success("✅ Đồng bộ thành công!")
+    if not chunks:
+        st.error("⚠️ Không tìm thấy text trong file. Có thể file toàn ảnh scan hoặc rỗng.")
+    else:
+        index, embeddings, saved_chunks = build_index(chunks)
+        if index is None:
+            st.error("⚠️ Không tạo được FAISS index.")
+        else:
+            np.save("index/chunks.npy", saved_chunks)
+            st.success(f"✅ Đồng bộ thành công! ({len(saved_chunks)} chunks)")
 
+# =============================
+# Hỏi đáp
+# =============================
 question = st.text_area("Nhập câu hỏi của bạn", height=100)
 if st.button("🚀 Hỏi tài liệu"):
-    if not os.path.exists(INDEX_PATH):
+    if not os.path.exists(INDEX_PATH) or not os.path.exists("index/chunks.npy"):
         st.error("⚠️ Chưa có dữ liệu, hãy đồng bộ trước.")
     else:
         index = load_index()
         chunks = np.load("index/chunks.npy", allow_pickle=True)
-        relevant_chunks = search_chunks(question, chunks, index)
+        relevant_chunks = search_chunks(question, chunks.tolist(), index)
         answer = ask_groq(relevant_chunks, question)
         st.subheader("💡 Trả lời:")
         st.write(answer)
