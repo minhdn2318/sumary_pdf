@@ -18,3 +18,9 @@ INDEX_PATH = "index/faiss.index"
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 100
 TOP_K = 3
+
+# FAISS
+INDEX_PATH = "index/faiss.index"
+
+# Google Drive folder public
+GOOGLE_DRIVE_FOLDER = "https://drive.google.com/drive/folders/1qYLaWRbRnC0j4cRX9jzeJgKqmn185tNm"
