@@ -5,6 +5,7 @@ import fitz
 import docx
 import faiss
 import numpy as np
+import gdown
 from sentence_transformers import SentenceTransformer
 from config import *
 
@@ -12,7 +13,7 @@ from config import *
 # Utils
 # =============================
 def extract_pdf_text(file_path):
-    """Đọc text từ PDF, nếu file scan sẽ trả về rỗng"""
+    """Đọc text từ PDF"""
     text = ""
     try:
         doc = fitz.open(file_path)
@@ -114,8 +115,18 @@ if st.button("🔄 Đồng bộ lại OCR dữ liệu"):
     all_text = ""
 
     if mode == "Google Drive (mặc định)":
-        # TODO: tải file từ Google Drive folder (cần API key / gdown)
-        st.warning("🚧 Chưa implement tải file từ Google Drive (sẽ thêm sau).")
+        try:
+            st.write("📥 Đang tải file từ Google Drive...")
+            gdown.download_folder(GOOGLE_DRIVE_FOLDER, output="data", quiet=False, use_cookies=False)
+            for file_name in os.listdir("data"):
+                file_path = os.path.join("data", file_name)
+                if file_path.endswith(".pdf"):
+                    all_text += extract_pdf_text(file_path) + "\n"
+                elif file_path.endswith(".docx"):
+                    all_text += extract_docx_text(file_path) + "\n"
+        except Exception as e:
+            st.error(f"❌ Lỗi tải file từ Google Drive: {e}")
+
     else:
         uploaded_files = st.file_uploader("Tải file PDF/DOCX", type=["pdf", "docx"], accept_multiple_files=True)
         if uploaded_files:
