@@ -91,8 +91,9 @@ def ask_groq(chunks, question):
             {"role": "user", "content": f"Ngữ cảnh: {context}\n\nCâu hỏi: {question}"}
         ]
     }
-    try:
-        response = requests.post("{GROQ_API_URL}", headers=headers, json=data)
+    try
+        console.log("Gọi API Groq: " + GROQ_API_URL)
+        response = requests.post(GROQ_API_URL, headers=headers, json=data)
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
         else:
